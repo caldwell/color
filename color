@@ -1,0 +1,107 @@
+#!/usr/bin/env ruby
+
+class Color < Struct.new(:r, :g, :b)
+  #def initialize(r,g,b); super end
+  def css; sprintf("#%02x%02x%02x", r,g,b) end
+  def rgb; sprintf("rgb(%3d,%3d,%3d)", r,g,b) end
+end
+
+class AnsiColor < Struct.new(:index, :color)
+  def css; color.css end
+  def rgb; color.rgb end
+  def ansi_attr_fg
+    return (30+index).to_s if index < 8
+    "38;5;#{index}"
+  end
+  def ansi_attr_bg
+    return (40+index).to_s if index < 8
+    "48;5;#{index}"
+  end
+  def ansi_esc_fg; "\e[#{ansi_attr_fg}m" end
+  def ansi_esc_bg; "\e[#{ansi_attr_bg}m" end
+end
+
+def rgb(r,g,b)
+  Color.new(r,g,b)
+end
+
+def color_table()
+  ansi_color = [
+    [
+      # Normal intensity
+      # vga                windows xp              terminal.app            putty                   xterm
+      [rgb(0, 0, 0),       rgb(0, 0, 0),         rgb(0, 0, 0),         rgb(0, 0, 0),         rgb(0, 0, 0)       ],            #  Black    */
+      [rgb(170, 0, 0),     rgb(128, 0, 0),       rgb(194, 54, 33),     rgb(187, 0, 0),       rgb(205, 0, 0)     ],            #  Red      */
+      [rgb(0, 170, 0),     rgb(0, 128, 0),       rgb(37, 188, 36),     rgb(0, 187, 0),       rgb(0, 205, 0)     ],            #  Green    */
+      [rgb(170, 85, 0),    rgb(128, 128, 0),     rgb(173, 173, 39),    rgb(187, 187, 0),     rgb(205, 205, 0)   ],            #  yellow   */
+      [rgb(0, 0, 170),     rgb(0, 0, 128),       rgb(73, 46, 225),     rgb(0, 0, 187),       rgb(0, 0, 238)     ],            #  Blue     */
+      [rgb(170, 0, 170),   rgb(128, 0, 128),     rgb(211, 56, 211),    rgb(187, 0, 187),     rgb(205, 0, 205)   ],            #  Magenta  */
+      [rgb(0, 170, 170),   rgb(0, 128, 128),     rgb(51, 187, 200),    rgb(0, 187, 187),     rgb(0, 205, 205)   ],            #  Cyan     */
+      [rgb(170, 170, 170), rgb(192, 192, 192),   rgb(203, 204, 205),   rgb(187, 187, 187),   rgb(229, 229, 229) ],            #  Gray     */
+    ], [                                                                                                                      # Bright:   */
+      [rgb(85, 85, 85),    rgb(128, 128, 128),   rgb(129, 131, 131),   rgb(85, 85, 85),      rgb(127, 127, 127) ],            #  Darkgray */
+      [rgb(255, 85, 85),   rgb(255, 0, 0),       rgb(252,57,31),       rgb(255, 85, 85),     rgb(255, 0, 0)     ],            #  Red      */
+      [rgb(85, 255, 85),   rgb(0, 255, 0),       rgb(49, 231, 34),     rgb(85, 255, 85),     rgb(0, 255, 0)     ],            #  Green    */
+      [rgb(255, 255, 85),  rgb(255, 255, 0),     rgb(234, 236, 35),    rgb(255, 255, 85),    rgb(255, 255, 0)   ],            #  Yellow   */
+      [rgb(85, 85, 255),   rgb(0, 0, 255),       rgb(88, 51, 255),     rgb(85, 85, 255),     rgb(92, 92, 255)   ],            #  Blue     */
+      [rgb(255, 85, 255),  rgb(255, 0, 255),     rgb(249, 53, 248),    rgb(255, 85, 255),    rgb(255, 0, 255)   ],            #  Magenta  */
+      [rgb(85, 255, 255),  rgb(0, 255, 255),     rgb(20, 240, 240),    rgb(85, 255, 255),    rgb(0, 255, 255)   ],            #  Cyan     */
+      [rgb(255, 255, 255), rgb(255, 255, 255),   rgb(233, 235, 235),   rgb(255, 255, 255),   rgb(255, 255, 255) ],            #  White    */
+    ]
+  ];
+
+    ansi_256color = []
+    ansi_color[0].each_with_index {|c,i| ansi_256color.push(AnsiColor.new(i, c[2])) }
+    ansi_color[1].each_with_index {|c,i| ansi_256color.push(AnsiColor.new(i+8, c[2])) }
+    # Plus a 6 sided RGB cube
+    (0...6).each {|r|
+        (0...6).each {|g|
+            (0...6).each {|b|
+              ansi_256color.push(AnsiColor.new(16 + r*36 + g*6 + b, rgb(r*(255/5), g*(255/5), b*(255/5))))
+            }
+        }
+    }
+
+    # Plus a ramp from black to white but not including either black or white.
+    (0...(26-2)).each {|l|
+        lum = (l+1)*255/26
+        ansi_256color.push(AnsiColor.new(16 + 216 + l, rgb(lum,lum,lum)))
+    }
+
+    #ansi_256color.each {|a| puts "#{a.index} #{a.css} #{a.rgb}" }
+    ansi_256color
+end
+
+def closest(color, color_table)
+  color_table.map {|a| [a, (color.r - a.color.r)**2 + (color.g - a.color.g)**2 + (color.b - a.color.b)**2] }
+    .sort {|a,b| (cd=a[1] - b[1]) != 0 ? cd : a[0].index - b[0].index }
+    .first[0]
+end
+
+ansi_256color = color_table()
+
+ARGV.each {|a|
+  if /^\#?(?<r>\h{2})
+         (?<g>\h{2})
+         (?<b>\h{2})$/x =~ a
+    c=rgb(r.to_i(16),
+          g.to_i(16),
+          b.to_i(16))
+  elsif /^\#?(?<r>\h)
+            (?<g>\h)
+            (?<b>\h)$/x =~ a
+    c=rgb(r.to_i(16)*17,
+          g.to_i(16)*17,
+          b.to_i(16)*17)
+  elsif /^(:?rgb\()?\s*(?<r>\d+)\s*,
+                       (?<g>\d+)\s*,
+                       (?<b>\d+)\s*\)?$/x =~ a
+    c=rgb(r.to_i, g.to_i, b.to_i)
+  else
+    warn "can't parse color #{a}, skipping. try '#rrggbb', 'rrggbb', '#rgb', 'rgb(r, g, b)', or 'r,g,b'"
+    next
+  end
+
+  out = closest(c, ansi_256color)
+  print "#{c.css} #{c.rgb} -> #{out.index}: #{out.css} #{out.rgb} fg: \\e[#{out.ansi_attr_fg}m bg: \\e[#{out.ansi_attr_bg}m  #{out.ansi_esc_fg}Sample Foreground\e[0m  #{out.ansi_esc_bg}Sample Background\e[0m"
+}

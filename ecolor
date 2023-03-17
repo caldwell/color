@@ -1,0 +1,37 @@
+#!/usr/bin/env emacs --script
+
+;(message "%S" (display-color-cells))
+
+(defun display-color-cells (&optional display) 256) ;; Hack. In batch mode we have no frame so the real display-color-cells always returns 0
+
+(require 'term/xterm)
+(xterm-register-default-colors xterm-standard-colors)
+
+(defun e2css (color)
+  (if color
+      (format "#%02x%02x%02x" (/ (nth 0 color) 256) (/ (nth 1 color) 256) (/ (nth 2 color) 256))
+    "<nil>"))
+(defun e2rgb (color)
+  (if color
+      (format "rgb(%3d,%3d,%3d)" (/ (nth 0 color) 256) (/ (nth 1 color) 256) (/ (nth 2 color) 256))
+    "<nil>"))
+
+(while command-line-args-left
+  (let* ((color      (pop command-line-args-left))
+         (std        (or (tty-color-standard-values color)
+                         (cddr (tty-color-by-index (string-to-number color)))
+                         (error "Couldn't interpret color \"%s\"" color)))
+         (out_raw    (tty-color-translate color))
+         (out        (tty-color-by-index (or out_raw (string-to-number color))))
+         (index      (nth 1 out))
+         (r          (/ (nth 2 out) 256))
+         (g          (/ (nth 3 out) 256))
+         (b          (/ (nth 4 out) 256))
+         (attr-fg    (if (< index 8) (format "%d" (+ 30 index))
+                       (format "38;5;%d" index)))
+         (attr-bg    (if (< index 8) (format "%d" (+ 40 index))
+                       (format "48;5;%d" index))))
+    (message "%S %S %s -> %S %d: %s %s fg \\e[%sm bg: \\e[%sm \e[%smSample Foreground\e[0m  \e[%smSample Background\e[0m"
+             color std (e2css std) out index (e2css (cddr out)) (e2rgb (cddr out)) attr-fg attr-bg attr-fg attr-bg)))
+
+;(message "%S" tty-defined-color-alist)
