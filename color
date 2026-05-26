@@ -93,7 +93,7 @@ end
 # Contrast against white (L = 1): (1 + 0.05) / (L + 0.05)  =  1.05 / (L + 0.05)
 # Set those equal and solve for L gives L ≈ 0.1791, which is the point where they're of equal contrast
 def fg_for(bg)
-  rel_lum(bg) > 0.179 ? color_table[0] : color_table[7]
+  rel_lum(bg) > 0.179 ? color_table[0] : color_table[15]
 end
 
 def color_cell(c)
