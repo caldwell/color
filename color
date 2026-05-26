@@ -128,5 +128,9 @@ ARGV.each {|a|
   end
 
   out = closest(c, ansi_256color)
-  print "#{c.css} #{c.rgb} -> #{out.index}: #{out.css} #{out.rgb} fg: \\e[#{out.ansi_attr_fg}m bg: \\e[#{out.ansi_attr_bg}m  #{out.ansi_esc_fg}Sample Foreground\e[0m  #{out.ansi_esc_bg}Sample Background\e[0m"
+  print "#{c.css} #{c.rgb} -> #{out.index}: #{out.css} #{out.rgb}"
+  print " fg: \\e[#{out.ansi_attr_fg}m"
+  print " bg: \\e[#{out.ansi_attr_bg}m"
+  print " #{out.ansi_esc_fg}Sample Foreground\e[0m"
+  print " #{out.ansi_esc_bg}Sample Background\e[0m\n"
 }
