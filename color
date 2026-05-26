@@ -88,11 +88,7 @@ def rel_lum(c)
   0.2126 * r + 0.7152 * g + 0.0722 * b
 end
 # https://www.w3.org/TR/WCAG22/#dfn-contrast-ratio
-def contrast(fg, bg)
-  a, b = rel_lum(fg), rel_lum(bg)
-  hi, lo = [a, b].max, [a, b].min
-  (hi + 0.05) / (lo + 0.05)
-end
+# Contrast ratio (L1 + 0.05) / (L2 + 0.05), where L1 is lighter color's luminence and L2 is the darker color's
 # Contrast against black (L = 0): (L + 0.05) / (0 + 0.05)  =  (L + 0.05) / 0.05
 # Contrast against white (L = 1): (1 + 0.05) / (L + 0.05)  =  1.05 / (L + 0.05)
 # Set those equal and solve for L gives L ≈ 0.1791, which is the point where they're of equal contrast
