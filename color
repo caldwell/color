@@ -4,6 +4,7 @@ class Color < Struct.new(:r, :g, :b)
   #def initialize(r,g,b); super end
   def css; sprintf("#%02x%02x%02x", r,g,b) end
   def rgb; sprintf("rgb(%3d,%3d,%3d)", r,g,b) end
+  def to_a; [r, g, b] end
 end
 
 class AnsiColor < Struct.new(:index, :color)
@@ -78,8 +79,29 @@ def closest(color, color_table)
     .first[0]
 end
 
+# https://www.w3.org/TR/WCAG22/#dfn-relative-luminance errata: https://www.w3.org/WAI/GL/wiki/Relative_luminance
+def lum(c)
+  c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
+end
+def rel_lum(c)
+  r, g, b = c.color.to_a.map { |x| lum(x/255.0) }
+  0.2126 * r + 0.7152 * g + 0.0722 * b
+end
+# https://www.w3.org/TR/WCAG22/#dfn-contrast-ratio
+def contrast(fg, bg)
+  a, b = rel_lum(fg), rel_lum(bg)
+  hi, lo = [a, b].max, [a, b].min
+  (hi + 0.05) / (lo + 0.05)
+end
+# Contrast against black (L = 0): (L + 0.05) / (0 + 0.05)  =  (L + 0.05) / 0.05
+# Contrast against white (L = 1): (1 + 0.05) / (L + 0.05)  =  1.05 / (L + 0.05)
+# Set those equal and solve for L gives L ≈ 0.1791, which is the point where they're of equal contrast
+def fg_for(bg)
+  rel_lum(bg) > 0.179 ? color_table[0] : color_table[7]
+end
+
 def color_cell(c)
-  sprintf "%s%10s\e[0m  %s%10s\e[0m", c.ansi_esc_bg, c.ansi_attr_bg, c.ansi_esc_fg, c.ansi_attr_fg
+  sprintf "%s%10s\e[0m  %s%10s\e[0m", c.ansi_esc_bg + fg_for(c).ansi_esc_fg, c.ansi_attr_bg, c.ansi_esc_fg, c.ansi_attr_fg
 end
 def print_color_table()
   ct = color_table
@@ -132,5 +154,5 @@ ARGV.each {|a|
   print " fg: \\e[#{out.ansi_attr_fg}m"
   print " bg: \\e[#{out.ansi_attr_bg}m"
   print " #{out.ansi_esc_fg}Sample Foreground\e[0m"
-  print " #{out.ansi_esc_bg}Sample Background\e[0m\n"
+  print " #{out.ansi_esc_bg}#{fg_for(out).ansi_esc_fg}Sample Background\e[0m\n"
 }
